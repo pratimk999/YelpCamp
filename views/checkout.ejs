@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>YELP CAMP</title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link rel="stylesheet" href="/checkout.css">
+	<script rel="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+	 <script src="https://js.stripe.com/v3/"></script>
+<body>
+
+<div class="container">
+	<div class="row">
+		<h4 style="color:red;">
+		
+		    Note: This payment process is just an experiment, the amount is not accurate and it's hard coded,not at  
+			all related to any campground.
+		</h4>
+	</div>
+</div>
+	
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-offset-3 col-md-6">
+      <div class="sr-root">
+        <div class="sr-main">
+          <h3 class="text-center" id="header">Registration Payment</h3>
+          <form id="payment-form" class="sr-payment-form">
+            <div class="sr-combo-inputs-row">
+              <div class="sr-input sr-card-element" id="card-element"></div>
+            </div>
+            <div class="sr-field-error" id="card-errors" role="alert"></div>
+            <button id="submit">
+              <div class="spinner hidden" id="spinner"></div>
+              <span id="button-text">Pay $<%= amount %></span>
+            </button>
+          </form>
+			<a href="/campgrounds" class="text-center" style="color:black;text-decoration:none;margin-top:10px;">Back</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+	
+var displayError = document.getElementById('card-errors');
+function errorHandler(err) {
+  changeLoadingState(false);
+  displayError.textContent = err;
+}
+var orderData = {
+  items: [{ id: "yelpcamp-registration-fee" }],
+  currency: "usd"
+};
+
+// Set your publishable key: remember to change this to your live publishable key in production
+// See your keys here: https://dashboard.stripe.com/account/apikeys
+var stripe = Stripe('	pk_test_51H6dG7Au80BcOvFpHllnQ08DlgFFsA5rxczuWzoM9zHm6yoQrgVSOCphB2Cx1e1TD7F3ypEJWvxWjubbYjEOBc7d00dKsfS6l7');
+var elements = stripe.elements();
+
+// Set up Stripe.js and Elements to use in checkout form
+var style = {
+  base: {
+    color: "#32325d",
+  }
+};
+
+var card = elements.create("card", { style: style });
+card.mount("#card-element");
+
+card.addEventListener('change', function(event) {
+  if (event.error) {
+    errorHandler(event.error.message);
+  } else {
+    errorHandler('');
+  }
+});
+
+var form = document.getElementById('payment-form');
+
+form.addEventListener('submit', function(ev) {
+  ev.preventDefault();
+
+  changeLoadingState(true);
+
+  stripe.createPaymentMethod("card", card)
+        .then(function(result) {
+          if (result.error) {
+            errorHandler(result.error.message);
+          } else {
+            orderData.paymentMethodId = result.paymentMethod.id;
+
+            return fetch("/pay", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(orderData)
+            });
+          }
+        })
+        .then(function(result) {
+          return result.json();
+        })
+        .then(function(response) {
+          if (response.error) {
+            errorHandler(response.error);
+          } else {
+            changeLoadingState(false);
+            // redirect to /campgrounds with a query string
+            // that invokes a success flash message
+            window.location.href = '/campgrounds?paid=true';
+          }
+        }).catch(function(err) {
+          errorHandler(err.error);
+        });
+});
+
+// Show a spinner on payment submission
+function changeLoadingState(isLoading) {
+    if (isLoading) {
+        document.querySelector("button").disabled = true;
+        document.querySelector("#spinner").classList.remove("hidden");
+        document.querySelector("#button-text").classList.add("hidden");
+    } else {
+        document.querySelector("button").disabled = false;
+        document.querySelector("#spinner").classList.add("hidden");
+        document.querySelector("#button-text").classList.remove("hidden");
+    }
+}; 
+	
+</script>
+
+
+
+
+
+<%- include ("partials/footer") %>
